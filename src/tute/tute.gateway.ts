@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   SubscribeMessage,
   WebSocketGateway,
@@ -12,8 +12,8 @@ import {
 
 import { Server, Socket } from 'socket.io';
 import Game, { Card } from './game';
-
-@WebSocketGateway(80, {
+@Injectable()
+@WebSocketGateway({
   cors: {
     origin: '*',
   },
