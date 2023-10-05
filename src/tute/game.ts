@@ -124,6 +124,7 @@ class Game {
     this.players.forEach((p) => {
       p.sings = []
       p.stack = []
+      p.hand = []
     })
 
     Object.values(CardTypes).forEach((type) => {
@@ -227,10 +228,6 @@ class Game {
 
       player.hand = player.hand.filter((c) => !this.sameCard(c, card))
       this.table[playerIndex] = card
-      if (this.hasTute(player)) {
-        this.resolveGame(player)
-        return
-      }
       if (this.table.every((c) => c !== null)) {
         this.resolveRound()
       } else {
@@ -289,6 +286,10 @@ class Game {
   resolveRound() {
     this.waiting = true
     const winner = this.getWinner()
+    if (this.hasTute(this.players[winner])) {
+      this.resolveGame(this.players[winner])
+      return
+    }
     const availableSings = this.getAvailableSings(winner)
     if (availableSings.length > 0) {
       this.decision = (sing?: CardTypes) => {
@@ -306,7 +307,7 @@ class Game {
           this.firstCard = null
           this.lastWinner = winner
           this.waiting = false
-          this.sendInfo(this.players[winner].name + ' canta ' + sing)
+          sing && this.sendInfo(this.players[winner].name + ' canta ' + sing)
           this.players.forEach((player) => {
             player.socket.emit('game-state', this.getGameState(player.name))
           })
@@ -343,7 +344,9 @@ class Game {
       }, 2000)
     }
     if (this.players[winner].hand.length === 0) {
-      this.resolveGame()
+      setTimeout(() => {
+        this.resolveGame()
+      }, 2000)
     }
   }
 
