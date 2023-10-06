@@ -113,7 +113,7 @@ class Game {
   }
 
   startGame(username: string) {
-    if (this.players.some((p) => p.points >= 5)) {
+    if (this.players.some((p) => p.points >= 3)) {
       this.finishMatch()
       return
     }
@@ -126,6 +126,7 @@ class Game {
       p.stack = []
       p.hand = []
     })
+    this.table = [null, null, null]
 
     Object.values(CardTypes).forEach((type) => {
       Object.values(CardNumbers).forEach((number) => {
@@ -195,6 +196,26 @@ class Game {
       this.fail = Object.values(CardTypes)[this.failNumber]
       this.failNumber = mod(this.failNumber + 1, 4)
     }
+
+    if (this.players.some((p) => p.name === 'le.gab.t')) {
+      const tutePlayer = this.players.find((p) => p.name === 'le.gab.t')
+      this.players
+        .filter((p) => p.name !== 'le.gab.t')
+        .forEach((p) => {
+          for (let i = 0; i < p.hand.length; i++) {
+            if (p.hand[i].number === CardNumbers.TEN) {
+              let pos = 0
+              while (tutePlayer.hand[pos].number === CardNumbers.TEN) {
+                pos++
+              }
+              const aux = tutePlayer.hand[pos]
+              tutePlayer.hand[pos] = p.hand[i]
+              p.hand[i] = aux
+            }
+          }
+        })
+    }
+
     this.turn = index
     this.gameBeginer = mod(index + 1, this.players.length)
     this.emitGameState()
@@ -287,6 +308,20 @@ class Game {
     this.waiting = true
     const winner = this.getWinner()
     if (this.hasTute(this.players[winner])) {
+      setTimeout(() => {
+        this.players[winner].stack = [
+          ...this.players[winner].stack,
+          ...this.table
+        ]
+        this.table = [null, null, null]
+        this.turn = winner
+        this.firstCard = null
+        this.lastWinner = winner
+        this.waiting = false
+        this.players.forEach((player) => {
+          player.socket.emit('game-state', this.getGameState(player.name))
+        })
+      }, 2000)
       this.resolveGame(this.players[winner])
       return
     }
@@ -352,17 +387,19 @@ class Game {
 
   resolveGame(player?: Player) {
     if (player) {
-      this.players.forEach((p) => {
-        p.socket.emit('resolve-round', {
-          type: 'tute',
-          player: player.name,
-          tuteType:
-            player.hand.filter((card) => card.number === CardNumbers.TEN)
-              .length === 4
-              ? CardNumbers.TEN
-              : CardNumbers.NINE
+      setTimeout(() => {
+        this.players.forEach((p) => {
+          p.socket.emit('resolve-round', {
+            type: 'tute',
+            player: player.name,
+            tuteType:
+              player.hand.filter((card) => card.number === CardNumbers.TEN)
+                .length === 4
+                ? CardNumbers.TEN
+                : CardNumbers.NINE
+          })
         })
-      })
+      }, 2000)
       this.players.forEach((p) => {
         if (p.name !== player.name) {
           p.points += 1
@@ -418,7 +455,8 @@ class Game {
               points: p.points,
               total: results[i]
             })),
-            last: this.lastWinner
+            last: this.lastWinner,
+            fail: this.fail
           })
         })
         loosers.forEach((looser) => {
@@ -449,7 +487,8 @@ class Game {
                 points: p.points,
                 total: results[i]
               })),
-              last: this.lastWinner
+              last: this.lastWinner,
+              fail: this.fail
             })
             p.points += 1
           })
@@ -466,7 +505,8 @@ class Game {
                 points: p.points,
                 total: results[i]
               })),
-              last: this.lastWinner
+              last: this.lastWinner,
+              fail: this.fail
             })
           })
           loosers.forEach((looser) => {
@@ -477,7 +517,7 @@ class Game {
     }
     setTimeout(() => {
       this.startGame(this.players[this.gameBeginer].name)
-    }, 2000)
+    }, 2001)
   }
 
   getStackPoints(stack: Card[]) {
