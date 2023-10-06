@@ -9,12 +9,6 @@ export enum CardTypes {
   BASTO = 'BASTO'
 }
 
-export enum GameStatus {
-  QUEUE = 'queue',
-  MATCH = 'match',
-  Finish = 'finish'
-}
-
 export enum CardNumbers {
   ONE = 'ONE',
   TWO = 'TWO',
@@ -28,23 +22,28 @@ export enum CardNumbers {
   TEN = 'TEN'
 }
 
+export enum GameStatus {
+  QUEUE = 'queue',
+  MATCH = 'match',
+  Finish = 'finish'
+}
+export interface Card {
+  type: CardTypes
+  number: CardNumbers
+  playable?: boolean
+}
+
 const cardValues: { [key in CardNumbers]: number } = {
   [CardNumbers.ONE]: 11,
   [CardNumbers.TWO]: -5,
   [CardNumbers.THREE]: 10,
   [CardNumbers.FOUR]: -4,
   [CardNumbers.FIVE]: -3,
-  [CardNumbers.SIX]: -3,
+  [CardNumbers.SIX]: -2,
   [CardNumbers.SEVEN]: -1,
   [CardNumbers.EIGHT]: 2,
   [CardNumbers.NINE]: 3,
   [CardNumbers.TEN]: 4
-}
-
-export interface Card {
-  type: CardTypes
-  number: CardNumbers
-  playable?: boolean
 }
 
 interface Player {
@@ -113,7 +112,7 @@ class Game {
   }
 
   startGame(username: string) {
-    if (this.players.some((p) => p.points >= 3)) {
+    if (this.players.some((p) => p.points >= 5)) {
       this.finishMatch()
       return
     }
@@ -529,7 +528,7 @@ class Game {
   }
 
   getSingsPoints(sings: CardTypes[]) {
-    return sings.reduce((acc, sing) => (acc + sing === this.fail ? 20 : 10), 0)
+    return sings.reduce((acc, sing) => acc + (sing === this.fail ? 40 : 20), 0)
   }
 
   getWinner() {
