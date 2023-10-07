@@ -63,7 +63,7 @@ export class TuteGateway
     @MessageBody() { name, game }: { name: string; game: string }
   ): void {
     const room = this.server.sockets.adapter.rooms.get(game)
-    if (room?.size >= 3) {
+    if (room?.size >= 5) {
       this.logger.log('Room full: ' + game)
       client.emit('room-full', game)
     } else if (room?.size >= 1) {
@@ -103,7 +103,7 @@ export class TuteGateway
     const games = []
     this.updateGames()
     for (const [key, value] of this.server.sockets.adapter.rooms) {
-      if (value.size < 3 && this.games.has(key)) {
+      if (value.size < 5 && this.games.has(key)) {
         games.push({
           name: key,
           players: value.size
@@ -156,7 +156,7 @@ export class TuteGateway
     const room = this.server.sockets.adapter.rooms.get(roomName)
     if (room) {
       const game = this.games.get(roomName)
-      if (room.size === 3) {
+      if (room.size >= 3) {
         game.players.forEach((player) => {
           player.socket.emit('game-state', game.getGameState(player.name))
         })

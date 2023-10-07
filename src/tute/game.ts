@@ -1,4 +1,3 @@
-import { platform } from 'os'
 import { Socket } from 'socket.io'
 import { mod } from 'src/lib'
 
@@ -57,7 +56,7 @@ interface Player {
 
 class Game {
   players: Player[] = []
-  table: [Card, Card, Card] = [null, null, null]
+  table: Card[]
   turn: number = -1
   waiting: boolean = false
   fail: CardTypes | null = null
@@ -94,7 +93,7 @@ class Game {
   }
 
   addPlayer(player: string, socket: Socket) {
-    if (this.players.length < 3) {
+    if (this.players.length < 5) {
       this.players.push({
         name: player,
         hand: [],
@@ -125,7 +124,7 @@ class Game {
       p.stack = []
       p.hand = []
     })
-    this.table = [null, null, null]
+    this.table = new Array(this.players.length).fill(null)
 
     Object.values(CardTypes).forEach((type) => {
       Object.values(CardNumbers).forEach((number) => {
@@ -251,7 +250,7 @@ class Game {
       if (this.table.every((c) => c !== null)) {
         this.resolveRound()
       } else {
-        this.turn = mod(playerIndex + 1, 3)
+        this.turn = mod(playerIndex + 1, this.players.length)
       }
     }
   }
@@ -312,7 +311,7 @@ class Game {
           ...this.players[winner].stack,
           ...this.table
         ]
-        this.table = [null, null, null]
+        this.table = new Array(this.players.length).fill(null)
         this.turn = winner
         this.firstCard = null
         this.lastWinner = winner
@@ -336,7 +335,7 @@ class Game {
             ...this.players[winner].stack,
             ...this.table
           ]
-          this.table = [null, null, null]
+          this.table = new Array(this.players.length).fill(null)
           this.turn = winner
           this.firstCard = null
           this.lastWinner = winner
@@ -367,7 +366,7 @@ class Game {
           ...this.players[winner].stack,
           ...this.table
         ]
-        this.table = [null, null, null]
+        this.table = new Array(this.players.length).fill(null)
         this.turn = winner
         this.firstCard = null
         this.lastWinner = winner
@@ -602,7 +601,7 @@ class Game {
 }
 
 interface GameState {
-  table: [Card, Card, Card]
+  table: Card[]
   hand: Card[]
   stack: Card[]
   sings: CardTypes[]
@@ -638,7 +637,7 @@ const isPlayable = ({
   players: Player[]
   card: Card
   turn: number
-  table: [Card, Card, Card]
+  table: Card[]
   firstCard: Card
   hand: Card[]
 }) => {
