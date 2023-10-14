@@ -12,6 +12,7 @@ import {
 
 import { Server, Socket } from 'socket.io'
 import Game, { Card, CardTypes } from './game'
+import { PlayerService } from './player/player.service'
 @Injectable()
 @WebSocketGateway({
   cors: {
@@ -27,16 +28,41 @@ export class TuteGateway
 
   private logger: Logger = new Logger('TuteGateway')
 
+  constructor(private readonly players: PlayerService) {}
+
   afterInit() {
     this.logger.log('Socket.io initialized')
   }
 
   handleConnection(client: Socket) {
-    console.log(`Client connected: ${client.id}`)
+    this.logger.log(`Client connected: ${client.id}`)
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`Client disconnected: ${client.id}`)
+    this.logger.log(`Client disconnected: ${client.id}`)
+    this.players.unregisterSocket(client)
+    this.updateGames()
+  }
+
+  @SubscribeMessage('join')
+  handleJoin(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() username: string
+  ): void {
+    try {
+      this.players.register(username, client)
+      client.emit('joined', username)
+      this.games.forEach((game) => {
+        if (game.players.some((player) => player.name === username)) {
+          game.players.find((player) => player.name === username).socket =
+            client
+          this.recoverGame(username, game)
+          client.join(game.game)
+        }
+      })
+    } catch (e) {
+      client.emit('join-error', e.message)
+    }
   }
 
   @SubscribeMessage('create-game')
@@ -53,6 +79,7 @@ export class TuteGateway
       const newGame = new Game(username, client)
       this.games.set(username, newGame)
       this.logger.log('Created room: ' + username)
+      this.emitAvailableGames()
       this.emitLobby(username)
     }
   }
@@ -72,6 +99,7 @@ export class TuteGateway
       this.logger.log('Joined room: ' + game)
       this.emitLobby(game)
       this.emitGameState(game)
+      this.emitAvailableGames()
     } else {
       this.logger.log('Room does not exist: ' + game)
       client.emit('room-doesnt-exist', game)
@@ -100,16 +128,9 @@ export class TuteGateway
 
   @SubscribeMessage('get-games')
   handleGetGames(@ConnectedSocket() client: Socket): void {
-    const games = []
     this.updateGames()
-    for (const [key, value] of this.server.sockets.adapter.rooms) {
-      if (value.size < 5 && this.games.has(key)) {
-        games.push({
-          name: key,
-          players: value.size
-        })
-      }
-    }
+    const games = this.getAvailableGames()
+
     this.logger.log('Games: ' + games)
     client.emit('games', games)
   }
@@ -129,13 +150,15 @@ export class TuteGateway
     { card, game, player }: { card: Card; game: string; player: string }
   ) {
     const currentGame = this.games.get(game)
+    this.logger.log(card)
     currentGame?.playCard(player, card)
     currentGame && this.emitGameState(game)
   }
 
   private updateGames() {
-    for (const game of Object.keys(this.games)) {
-      if (!this.server.sockets.adapter.rooms.get(game)) {
+    for (const game of this.games.keys()) {
+      if (!this.server.sockets.adapter.rooms.get(game)?.size) {
+        this.logger.log('Deleting game: ' + game)
         this.games.delete(game)
       }
     }
@@ -162,5 +185,32 @@ export class TuteGateway
         })
       }
     }
+  }
+
+  emitAvailableGames() {
+    const games = this.getAvailableGames()
+    this.server.emit('games', games)
+  }
+
+  getAvailableGames() {
+    const games: {
+      name: string
+      players: number
+    }[] = []
+    for (const [key, value] of this.server.sockets.adapter.rooms) {
+      if (value.size < 5 && this.games.has(key)) {
+        games.push({
+          name: key,
+          players: value.size
+        })
+      }
+    }
+    return games
+  }
+
+  recoverGame(username: string, game: Game) {
+    game.players
+      .find((player) => player.name === username)
+      .socket.emit('recover-game', game.getGameState(username))
   }
 }
