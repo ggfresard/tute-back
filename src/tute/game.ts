@@ -140,7 +140,7 @@ class Game {
       deck.push(card)
       cards.splice(index, 1)
     }
-    while (deck.length > this.players.length) {
+    while (deck.length >= this.players.length) {
       for (let i = 0; i < this.players.length; i++) {
         this.players[mod(index + i, this.players.length)].hand.push(deck.pop())
       }
